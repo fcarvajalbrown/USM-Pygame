@@ -22,9 +22,9 @@ ctk.set_default_color_theme("blue")
 _keys_held: set[str] = set()
 
 
-class AtariLabApp(ctk.CTk):
-    def __init__(self, lesson_path: Path):
-        super().__init__()
+class AtariLabApp(ctk.CTkToplevel):
+    def __init__(self, lesson_path: Path, root: ctk.CTk):
+        super().__init__(master=root)
         self.lesson_path = lesson_path
         self.slides = json.loads((lesson_path / "slides.json").read_text(encoding="utf-8"))
 
@@ -206,7 +206,7 @@ class AtariLabApp(ctk.CTk):
 
     def _on_close(self):
         self._running = False
-        self.destroy()
+        self.master.destroy()  # cierra la welcome screen (root) y termina el proceso
 
     # --- Loop del juego (hilo separado) ---
 

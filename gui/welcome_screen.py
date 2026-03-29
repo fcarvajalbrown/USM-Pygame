@@ -21,12 +21,13 @@ class WelcomeScreen(ctk.CTk):
     def __init__(self, available_lessons: list[dict]):
         super().__init__()
         self.title("USM-Pygame")
-        self.geometry("720x560")
         self.resizable(True, True)
+        self.after(0, lambda: self.state("zoomed"))
 
         self.selected_lesson: Path | None = None
         self._lessons = available_lessons
         self._selected_index: int | None = None
+        self.lesson_selected_var: ctk.StringVar = ctk.StringVar(value="")
 
         self._build()
         # Arranca animación del logo 100ms después de que la ventana esté lista
@@ -39,7 +40,7 @@ class WelcomeScreen(ctk.CTk):
             self, width=_CW, height=_CH,
             bg=_bg, highlightthickness=0,
         )
-        self.logo_canvas.pack(pady=(36, 0))
+        self.logo_canvas.pack(pady=(36, 0), fill="x")
 
         # Subtítulo — aparece tras el logo
         self.lbl_sub = ctk.CTkLabel(
@@ -96,70 +97,63 @@ class WelcomeScreen(ctk.CTk):
 
     def _animate_logo(self):
         c = self.logo_canvas
+        self._after_ids = []  # guardamos IDs para cancelar si el usuario confirma antes
         delay = 0
 
-        def after(ms, fn):
-            # helper para encadenar pasos
-            self.after(delay + ms, fn)
+        def schedule(ms, fn):
+            aid = self.after(ms, fn)
+            self._after_ids.append(aid)
 
-        # Paso 1: barra vertical navy
         def step1():
             c.create_rectangle(_s(200), _s(40), _s(208), _s(240), fill=_NAVY, outline="")
-        self.after(0, step1); delay += 120
+        schedule(delay, step1); delay += 120
 
-        # Paso 2: bloques columna izquierda
         def step2():
             c.create_rectangle(_s(216), _s(40),  _s(242), _s(106), fill=_RED,   outline="")
-        self.after(delay, step2); delay += 100
+        schedule(delay, step2); delay += 100
 
         def step3():
             c.create_rectangle(_s(216), _s(114), _s(242), _s(180), fill=_GREEN, outline="")
-        self.after(delay, step3); delay += 100
+        schedule(delay, step3); delay += 100
 
         def step4():
             c.create_rectangle(_s(216), _s(188), _s(242), _s(240), fill=_BLUE,  outline="")
-        self.after(delay, step4); delay += 100
+        schedule(delay, step4); delay += 100
 
-        # Paso 3: bloques columna derecha
         def step5():
             c.create_rectangle(_s(250), _s(40),  _s(276), _s(92),  fill=_BLUE,  outline="")
-        self.after(delay, step5); delay += 100
+        schedule(delay, step5); delay += 100
 
         def step6():
             c.create_rectangle(_s(250), _s(100), _s(276), _s(166), fill=_RED,   outline="")
-        self.after(delay, step6); delay += 100
+        schedule(delay, step6); delay += 100
 
         def step7():
             c.create_rectangle(_s(250), _s(174), _s(276), _s(240), fill=_GREEN, outline="")
-        self.after(delay, step7); delay += 120
+        schedule(delay, step7); delay += 120
 
-        # Paso 4: texto USM
         def step8():
             c.create_text(_s(296), _s(132), text="USM",
                           font=("Georgia", int(72 * _SCALE), "bold"),
                           fill=_NAVY, anchor="w")
-        self.after(delay, step8); delay += 120
+        schedule(delay, step8); delay += 120
 
-        # Paso 5: línea roja — ancho aproximado del texto USM a 72px Georgia (~190px)
         def step9():
             c.create_rectangle(_s(296), _s(151), _s(486), _s(155), fill=_RED, outline="")
-        self.after(delay, step9); delay += 120
+        schedule(delay, step9); delay += 120
 
-        # Paso 6: texto Pygame
         def step10():
             c.create_text(_s(296), _s(196), text="Pygame",
                           font=("Georgia", int(44 * _SCALE)),
                           fill=_NAVY, anchor="w")
-        self.after(delay, step10); delay += 200
+        schedule(delay, step10); delay += 200
 
-        # Revelar resto de la UI
         def reveal():
             self.lbl_sub.pack(pady=(8, 20))
             self.lesson_section.pack(padx=40, fill="x", pady=(0, 16))
             self.btn_enter.pack(pady=(8, 4))
             self.lbl_hint.pack(pady=(0, 16))
-
-        self.after(delay, reveal)
+        schedule(delay, reveal)
 
     def _select(self, index: int):
         for i, btn in enumerate(self._btn_refs):
@@ -173,5 +167,8 @@ class WelcomeScreen(ctk.CTk):
     def _confirm(self):
         if self._selected_index is None:
             return
+        for aid in getattr(self, "_after_ids", []):
+            self.after_cancel(aid)
         self.selected_lesson = self._lessons[self._selected_index]["path"]
-        self.destroy()
+        self.withdraw()
+        self.lesson_selected_var.set("ready")
