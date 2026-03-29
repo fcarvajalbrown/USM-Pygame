@@ -1,13 +1,21 @@
-# Panel de ajuste en vivo — entradas de código conectadas al injector
+# Panel de ajuste — construido dinámicamente desde slides.json de la lección activa
+import json
+from pathlib import Path
 import customtkinter as ctk
 from engine.injector import LiveInjector
 
 
 class TweakPanel(ctk.CTkFrame):
-    def __init__(self, parent, injector: LiveInjector, **kwargs):
+    def __init__(self, parent, injector: LiveInjector, lesson_path: Path, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
         self.injector = injector
+        self.variables = self._load_variables(lesson_path)
         self._build()
+
+    def _load_variables(self, lesson_path: Path) -> list:
+        # Lee la definición de variables desde slides.json de la lección
+        slides = json.loads((lesson_path / "slides.json").read_text(encoding="utf-8"))
+        return slides.get("variables", [])
 
     def _build(self):
         ctk.CTkLabel(self, text="Panel de Ajuste",
@@ -17,75 +25,66 @@ class TweakPanel(ctk.CTkFrame):
                      font=ctk.CTkFont(size=11),
                      text_color="#666666").pack(anchor="w", pady=(0, 12))
 
-        self._add_code_input(
-            variable="BALL_SPEED",
-            hint="# Velocidad de la pelota (150 – 300)",
-            default="800",
-            on_apply=self._on_speed,
-        )
-        self._add_code_input(
-            variable="PADDLE_H",
-            hint="# Altura de la paleta (80 – 120)",
-            default="8",
-            on_apply=self._on_paddle_h,
-        )
+        for var in self.variables:
+            self._add_code_input(var)
 
-    def _add_code_input(self, variable: str, hint: str, default: str, on_apply):
-        # Comentario estilo código
-        ctk.CTkLabel(self, text=hint,
+    def _add_code_input(self, var: dict):
+        ctk.CTkLabel(self, text=var["hint"],
                      font=ctk.CTkFont(family="Courier New", size=11),
                      text_color="#555555").pack(anchor="w", pady=(10, 0))
 
-        # Línea de declaración: VARIABLE = [entrada]
         row = ctk.CTkFrame(self, fg_color="transparent")
         row.pack(fill="x", pady=(2, 0))
 
-        ctk.CTkLabel(row, text=f"{variable} = ",
+        ctk.CTkLabel(row, text=f"{var['nombre']} = ",
                      font=ctk.CTkFont(family="Courier New", size=13, weight="bold"),
                      text_color="#64C8FF").pack(side="left")
 
-        entry = ctk.CTkEntry(row,
-                             width=80,
+        entry = ctk.CTkEntry(row, width=80,
                              font=ctk.CTkFont(family="Courier New", size=13),
-                             placeholder_text=default,
+                             placeholder_text=var["default"],
                              justify="center")
         entry.pack(side="left", padx=(0, 8))
-        entry.insert(0, default)
+        entry.insert(0, var["default"])
 
         feedback = ctk.CTkLabel(row, text="",
                                 font=ctk.CTkFont(size=11),
                                 text_color="#888888")
         feedback.pack(side="left")
 
-        def apply(event=None, e=entry, cb=on_apply, fb=feedback):
+        def apply(event=None, e=entry, v=var, fb=feedback):
             raw = e.get().strip()
             try:
                 value = float(raw)
-                cb(value)
+                self._apply_variable(v, value)
                 fb.configure(text="✓", text_color="#50C850")
             except ValueError:
                 fb.configure(text="valor inválido", text_color="#FF5050")
+            # Devuelve el foco a la ventana principal para que W/S controlen la paleta
+            self.winfo_toplevel().focus_set()
 
         entry.bind("<Return>", apply)
-
-        ctk.CTkButton(self, text="Aplicar",
-                      command=apply,
-                      height=26,
-                      font=ctk.CTkFont(size=11),
+        ctk.CTkButton(self, text="Aplicar", command=apply,
+                      height=26, font=ctk.CTkFont(size=11),
                       fg_color="#1a3a5c", hover_color="#1f4f80").pack(anchor="w", pady=(4, 0))
 
-    # --- Callbacks ---
+    def _apply_variable(self, var: dict, value: float):
+        # Aplica el valor al objeto registrado según el transform definido en slides.json
+        transform = var.get("transform", "float")
+        target = var["target"]
 
-    def _on_speed(self, value: float):
-        # Preserva dirección de la pelota al cambiar magnitud
-        ball = self.injector._registry.get("pelota")
-        if ball is None:
-            return
-        sign_x = 1 if ball.vx >= 0 else -1
-        sign_y = 1 if ball.vy >= 0 else -1
-        self.injector.set_attr("pelota", "vx", sign_x * value)
-        self.injector.set_attr("pelota", "vy", sign_y * value * 0.6)
+        if transform == "int":
+            self.injector.set_attr(target, var["atributos"][0], int(value))
 
-    def _on_paddle_h(self, value: float):
-        self.injector.set_attr("paleta_jugador", "h", int(value))
-        self.injector.set_attr("paleta_enemigo", "h", int(value))
+        elif transform == "float":
+            self.injector.set_attr(target, var["atributos"][0], value)
+
+        elif transform == "speed_xy":
+            # Preserva dirección actual de la pelota al cambiar magnitud
+            obj = self.injector._registry.get(target)
+            if obj is None:
+                return
+            sign_x = 1 if obj.vx >= 0 else -1
+            sign_y = 1 if obj.vy >= 0 else -1
+            self.injector.set_attr(target, "vx", sign_x * value)
+            self.injector.set_attr(target, "vy", sign_y * value * 0.6)

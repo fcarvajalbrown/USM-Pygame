@@ -1,13 +1,14 @@
-# Lección 01 — Pong en modo caos: solo la velocidad de la pelota está rota
-# El estudiante escribe el valor correcto de BALL_SPEED para pasar la lección
+# Lección 01 — Pong en modo caos: velocidad y tamaño deliberadamente rotos
+# El estudiante corrige BALL_SPEED y PADDLE_H escribiendo el valor correcto
 import pygame
 from engine.base_entities import AtariObject, MovingObject, SCREEN_W, SCREEN_H
 from engine.injector import LiveInjector
 from engine.validation_watcher import ValidationWatcher
 
-# BALL_SPEED está roto a propósito — el estudiante lo corrige escribiendo código
-BALL_SPEED_DEFAULT = 800   # demasiado rápido; valor correcto está entre 150 y 300
-PADDLE_H = 90              # tamaño normal — no está roto
+# Ambos valores están rotos a propósito — el estudiante los corrige
+BALL_SPEED_DEFAULT = 800   # demasiado rápido; valor correcto: 150–300
+PADDLE_H_DEFAULT = 8       # paleta del JUGADOR — rota a propósito; valor correcto: 80–120
+PADDLE_H_ENEMY = 90        # paleta de la IA — tamaño normal, no está rota
 PADDLE_W = 14
 PADDLE_SPEED = 400
 WIN_SCORE = 3
@@ -16,7 +17,8 @@ WIN_SCORE = 3
 class Paddle(AtariObject):
     # Paleta controlada por teclado; hereda dibujo de AtariObject
     def __init__(self, x, is_player=True):
-        super().__init__(x, SCREEN_H // 2 - PADDLE_H // 2, PADDLE_W, PADDLE_H)
+        h = PADDLE_H_DEFAULT if is_player else PADDLE_H_ENEMY
+        super().__init__(x, SCREEN_H // 2 - h // 2, PADDLE_W, h)
         self.is_player = is_player
         self.score = 0
 
@@ -68,8 +70,9 @@ class Ball(MovingObject):
     def _reset(self):
         self.x = SCREEN_W // 2
         self.y = SCREEN_H // 2
-        # Mantiene la velocidad actual (el slider puede haberla cambiado)
-        self.vx = abs(self.vx) * (-1 if self.vx > 0 else 1)
+        # Invierte dirección horizontal y reinicia vertical
+        self.vx *= -1
+        self.vy = abs(self.vx) * 0.6
 
 
 def build(injector: LiveInjector) -> tuple:

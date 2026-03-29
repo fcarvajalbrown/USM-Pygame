@@ -1,5 +1,9 @@
-# Ventana principal con CustomTkinter — Pygame renderiza en un canvas embebido vía PIL
+# Ventana principal — genérica, sin hardcoding de lección alguna
+import json
 import threading
+import importlib
+from pathlib import Path
+
 import customtkinter as ctk
 from PIL import Image, ImageTk
 import pygame
@@ -7,8 +11,6 @@ import pygame
 from engine.injector import LiveInjector
 from engine.validation_watcher import ValidationWatcher
 from gui.tweak_panel import TweakPanel
-from lessons.pong_01 import template as pong
-from lessons.pong_01.win_condition import win_condition
 
 GAME_W, GAME_H = 800, 600
 FPS = 60
@@ -16,42 +18,44 @@ FPS = 60
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
-# Teclas rastreadas manualmente desde CTk
+# Teclas rastreadas desde CTk — Pygame offscreen no recibe eventos de teclado
 _keys_held: set[str] = set()
 
 
 class AtariLabApp(ctk.CTk):
-    def __init__(self):
+    def __init__(self, lesson_path: Path):
         super().__init__()
-        self.title("AtariLab — USM")
-        self.resizable(True, True)
+        self.lesson_path = lesson_path
+        self.slides = json.loads((lesson_path / "slides.json").read_text(encoding="utf-8"))
+
+        # Importa template y win_condition dinámicamente desde la carpeta de la lección
+        module_base = ".".join(lesson_path.parts[-2:])  # e.g. "lessons.pong_01"
+        self.lesson = importlib.import_module(f"{module_base}.template")
+        win_mod = importlib.import_module(f"{module_base}.win_condition")
 
         self.injector = LiveInjector()
-        self.watcher = ValidationWatcher(win_condition)
+        self.watcher = ValidationWatcher(win_mod.win_condition)
 
-        self.player = None
-        self.enemy = None
-        self.ball = None
+        self.game_objects: tuple | None = None  # lo que retorna lesson.build()
 
         self._running = False
         self._paused = False
         self._game_thread = None
+        self._pending_frame = None
         self._photo = None
+
+        self.title(f"AtariLab — {self.slides['intro']['titulo']}")
+        self.resizable(True, True)
 
         self._build_layout()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # Capturar teclado en la ventana CTk — Pygame offscreen no recibe eventos
         self.bind("<KeyPress>", lambda e: _keys_held.add(e.keysym.lower()))
         self.bind("<KeyRelease>", lambda e: _keys_held.discard(e.keysym.lower()))
-
-        # Mostrar popup de la lección al arrancar — after() espera a que la ventana esté lista
-        self.after(300, self._show_lesson_intro)
 
     # --- Layout ---
 
     def _build_layout(self):
-        # Panel izquierdo: canvas del juego + marcador
         left = ctk.CTkFrame(self, fg_color="transparent")
         left.pack(side="left", padx=12, pady=12, fill="both", expand=True)
 
@@ -76,7 +80,6 @@ class AtariLabApp(ctk.CTk):
                                        text_color="#FF7850")
         self.lbl_enemy.pack(side="right", padx=20)
 
-        # Panel derecho: controles + sliders
         right = ctk.CTkFrame(self, width=300, fg_color="#1a1a1a", corner_radius=12)
         right.pack(side="right", fill="y", padx=(0, 12), pady=12)
         right.pack_propagate(False)
@@ -84,11 +87,10 @@ class AtariLabApp(ctk.CTk):
         ctk.CTkLabel(right, text="AtariLab",
                      font=ctk.CTkFont(size=22, weight="bold"),
                      text_color="#FFC832").pack(pady=(20, 2))
-        ctk.CTkLabel(right, text="Lección 01 · Variables & Tipos",
+        ctk.CTkLabel(right, text=self.slides["intro"]["titulo"],
                      font=ctk.CTkFont(size=12),
                      text_color="#888888").pack(pady=(0, 16))
 
-        # Botones de control
         btn_frame = ctk.CTkFrame(right, fg_color="transparent")
         btn_frame.pack(fill="x", padx=16, pady=(0, 12))
 
@@ -113,17 +115,14 @@ class AtariLabApp(ctk.CTk):
                      font=ctk.CTkFont(size=11),
                      text_color="#555555").pack(pady=(0, 8))
 
-        # Separador
         ctk.CTkFrame(right, height=1, fg_color="#333333").pack(fill="x", padx=16, pady=8)
 
-        # Panel de ajuste (sliders)
-        self.tweak_panel = TweakPanel(right, self.injector)
+        # TweakPanel recibe la ruta de la lección — lee variables[] desde slides.json
+        self.tweak_panel = TweakPanel(right, self.injector, self.lesson_path)
         self.tweak_panel.pack(fill="x", padx=16, pady=4)
 
-        # Separador
         ctk.CTkFrame(right, height=1, fg_color="#333333").pack(fill="x", padx=16, pady=8)
 
-        # Estado de la lección
         ctk.CTkLabel(right, text="Estado de la Lección",
                      font=ctk.CTkFont(size=13, weight="bold"),
                      text_color="#CCCCCC").pack(pady=(0, 4))
@@ -136,29 +135,15 @@ class AtariLabApp(ctk.CTk):
                                         justify="center")
         self.lbl_lesson.pack(padx=16, pady=(0, 16))
 
-    # --- Control del juego ---
+    # --- Popup de introducción ---
 
     def _show_lesson_intro(self):
-        # Carga el contenido del popup desde la lección activa
-        import json
-        from pathlib import Path
-        root = Path(__file__).parent.parent
-        slides_path = root / "lessons" / "pong_01" / "slides.json"
-
-        try:
-            data = json.loads(slides_path.read_text(encoding="utf-8"))
-            intro = data["intro"]
-        except Exception as e:
-            print(f"Error cargando slides.json: {e}")
-            self._start_game()
-            return
+        intro = self.slides["intro"]
 
         popup = ctk.CTkToplevel(self)
         popup.title(intro["titulo"])
         popup.geometry("500x380")
         popup.resizable(False, False)
-
-        # Forzar al frente en Windows
         popup.lift()
         popup.focus_force()
         popup.grab_set()
@@ -183,14 +168,15 @@ class AtariLabApp(ctk.CTk):
                       fg_color="#2D7D2D", hover_color="#3A9A3A",
                       width=200).pack(pady=(0, 24))
 
-        # Bloquea el mainloop hasta que el popup se cierre
         self.wait_window(popup)
+
+    # --- Control del juego ---
 
     def _start_game(self):
         if self._running:
             return
         self.watcher.reset()
-        self.player, self.enemy, self.ball = pong.build(self.injector)
+        self.game_objects = self.lesson.build(self.injector)
         self._running = True
         self._paused = False
         self._game_thread = threading.Thread(target=self._game_loop, daemon=True)
@@ -202,12 +188,11 @@ class AtariLabApp(ctk.CTk):
 
     def _toggle_pause(self):
         self._paused = not self._paused
-        label = "▶  Reanudar" if self._paused else "⏸  Pausar"
-        self.btn_pause.configure(text=label)
+        self.btn_pause.configure(text="▶  Reanudar" if self._paused else "⏸  Pausar")
 
     def _restart_lesson(self):
         self.watcher.reset()
-        self.player, self.enemy, self.ball = pong.build(self.injector)
+        self.game_objects = self.lesson.build(self.injector)
 
     def _on_close(self):
         self._running = False
@@ -217,7 +202,6 @@ class AtariLabApp(ctk.CTk):
 
     def _game_loop(self):
         pygame.init()
-        # Superficie offscreen — sin ventana nativa de Pygame
         surface = pygame.Surface((GAME_W, GAME_H))
         clock = pygame.time.Clock()
 
@@ -228,19 +212,16 @@ class AtariLabApp(ctk.CTk):
                 continue
 
             dt = clock.tick(FPS) / 1000.0
-
             pygame.event.pump()
 
-            if self.player is None or self.enemy is None or self.ball is None:
+            if self.game_objects is None:
                 continue
 
-            pong.run_frame(self.player, self.enemy, self.ball,
-                           _keys_held, dt, surface, self.watcher)
+            # run_frame recibe los objetos desempaquetados + estado compartido
+            self.lesson.run_frame(*self.game_objects, _keys_held, dt, surface, self.watcher)
 
-            # Convertir surface a ImageTk y programar actualización en el hilo principal
             raw = pygame.image.tobytes(surface, "RGB")
-            img = Image.frombytes("RGB", (GAME_W, GAME_H), raw)
-            self._pending_frame = img
+            self._pending_frame = Image.frombytes("RGB", (GAME_W, GAME_H), raw)
 
         pygame.quit()
 
@@ -250,38 +231,36 @@ class AtariLabApp(ctk.CTk):
         if not self._running:
             return
 
-        # Volcar el frame pendiente al canvas
-        frame = getattr(self, "_pending_frame", None)
+        frame = self._pending_frame
         if frame is not None:
             cw = self.canvas.winfo_width()
             ch = self.canvas.winfo_height()
             if cw > 1 and ch > 1:
-                scaled = frame.resize((cw, ch), Image.Resampling.NEAREST)
+                scale = min(cw / GAME_W, ch / GAME_H)
+                nw, nh = int(GAME_W * scale), int(GAME_H * scale)
+                ox, oy = (cw - nw) // 2, (ch - nh) // 2
+                scaled = frame.resize((nw, nh), Image.Resampling.NEAREST)
                 self._photo = ImageTk.PhotoImage(scaled)
-                self.canvas.create_image(0, 0, anchor="nw", image=self._photo)
+                self.canvas.delete("all")
+                self.canvas.create_image(ox, oy, anchor="nw", image=self._photo)
             self._pending_frame = None
 
-        # Actualizar marcadores
-        if self.player and self.enemy:
-            self.lbl_player.configure(text=f"Jugador: {self.player.score}")
-            self.lbl_enemy.configure(text=f"IA: {self.enemy.score}")
+        # Marcadores — el contrato asume player en índice 0, enemy en índice 1
+        if self.game_objects:
+            player, enemy = self.game_objects[0], self.game_objects[1]
+            self.lbl_player.configure(text=f"Jugador: {player.score}")
+            self.lbl_enemy.configure(text=f"IA: {enemy.score}")
+            falta = max(0, 3 - player.score)
 
-        # Actualizar estado de la lección
-        if self.watcher.passed:
-            self.lbl_lesson.configure(
-                text="✅ ¡Lección superada!\nConcepto desbloqueado.",
-                text_color="#50C850"
-            )
-            self.lbl_status.configure(text="✅ ¡Superada!", text_color="#50C850")
-        elif self._paused:
-            self.lbl_status.configure(text="⏸ Pausado", text_color="#FFAA00")
-        else:
-            falta = max(0, 3 - (self.player.score if self.player else 0))
-            self.lbl_lesson.configure(
-                text=f"Calibra el juego y anota {falta} punto(s) más.",
-                text_color="#AAAAAA"
-            )
-            self.lbl_status.configure(text="▶ En juego", text_color="#64C8FF")
+            if self.watcher.passed:
+                self.lbl_lesson.configure(text="✅ ¡Lección superada!\nConcepto desbloqueado.",
+                                           text_color="#50C850")
+                self.lbl_status.configure(text="✅ ¡Superada!", text_color="#50C850")
+            elif self._paused:
+                self.lbl_status.configure(text="⏸ Pausado", text_color="#FFAA00")
+            else:
+                self.lbl_lesson.configure(text=f"Calibra el juego y anota {falta} punto(s) más.",
+                                           text_color="#AAAAAA")
+                self.lbl_status.configure(text="▶ En juego", text_color="#64C8FF")
 
-        # Reprogramar en 16ms (~60fps)
         self.after(16, self._tick_gui)
