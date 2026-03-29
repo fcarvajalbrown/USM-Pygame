@@ -1,12 +1,35 @@
-# Punto de entrada — selecciona la lección y muestra el popup antes de arrancar
+# Punto de entrada — muestra bienvenida, luego carga la lección seleccionada
+import json
 from pathlib import Path
+from gui.welcome_screen import WelcomeScreen
 from gui.main_window import AtariLabApp
 
-LESSON = Path(__file__).parent / "lessons" / "pong_01"
+ROOT = Path(__file__).parent
+
+
+def discover_lessons() -> list[dict]:
+    # Busca carpetas en lessons/ que tengan slides.json con clave "intro"
+    lessons = []
+    for folder in sorted((ROOT / "lessons").iterdir()):
+        slides = folder / "slides.json"
+        if folder.is_dir() and slides.exists():
+            data = json.loads(slides.read_text(encoding="utf-8"))
+            lessons.append({
+                "titulo": data["intro"]["titulo"],
+                "path": folder,
+            })
+    return lessons
+
 
 if __name__ == "__main__":
-    app = AtariLabApp(lesson_path=LESSON)
-    app.update()                   # renderiza la ventana completa antes del popup
-    app.update_idletasks()         # asegura que todos los widgets estén dibujados
-    app._show_lesson_intro()       # bloquea hasta que el estudiante confirme
+    lessons = discover_lessons()
+
+    welcome = WelcomeScreen(available_lessons=lessons)
+    welcome.mainloop()
+
+    # Si el estudiante cerró la ventana sin seleccionar, salir
+    if welcome.selected_lesson is None:
+        raise SystemExit
+
+    app = AtariLabApp(lesson_path=welcome.selected_lesson)
     app.mainloop()

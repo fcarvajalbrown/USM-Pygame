@@ -43,8 +43,9 @@ class AtariLabApp(ctk.CTk):
         self._game_thread = None
         self._pending_frame = None
         self._photo = None
+        self._intro_confirmed = False  # juego bloqueado hasta que el estudiante confirme
 
-        self.title(f"AtariLab — {self.slides['intro']['titulo']}")
+        self.title(f"USM-Pygame — {self.slides['intro']['titulo']}")
         self.resizable(True, True)
 
         self._build_layout()
@@ -52,6 +53,9 @@ class AtariLabApp(ctk.CTk):
 
         self.bind("<KeyPress>", lambda e: _keys_held.add(e.keysym.lower()))
         self.bind("<KeyRelease>", lambda e: _keys_held.discard(e.keysym.lower()))
+
+        # Popup se muestra 200ms después de que mainloop arranca — única forma confiable en Windows
+        self.after(200, self._show_lesson_intro)
 
     # --- Layout ---
 
@@ -84,7 +88,7 @@ class AtariLabApp(ctk.CTk):
         right.pack(side="right", fill="y", padx=(0, 12), pady=12)
         right.pack_propagate(False)
 
-        ctk.CTkLabel(right, text="AtariLab",
+        ctk.CTkLabel(right, text="USM-Pygame",
                      font=ctk.CTkFont(size=22, weight="bold"),
                      text_color="#FFC832").pack(pady=(20, 2))
         ctk.CTkLabel(right, text=self.slides["intro"]["titulo"],
@@ -95,7 +99,7 @@ class AtariLabApp(ctk.CTk):
         btn_frame.pack(fill="x", padx=16, pady=(0, 12))
 
         self.btn_start = ctk.CTkButton(btn_frame, text="▶  Iniciar",
-                                        command=self._show_lesson_intro,
+                                        command=self._on_iniciar,
                                         fg_color="#2D7D2D", hover_color="#3A9A3A")
         self.btn_start.pack(fill="x", pady=3)
 
@@ -137,6 +141,13 @@ class AtariLabApp(ctk.CTk):
 
     # --- Popup de introducción ---
 
+    def _on_iniciar(self):
+        # Si el estudiante aún no vio el popup, mostrarlo primero
+        if not self._intro_confirmed:
+            self._show_lesson_intro()
+        else:
+            self._start_game()
+
     def _show_lesson_intro(self):
         intro = self.slides["intro"]
 
@@ -161,6 +172,7 @@ class AtariLabApp(ctk.CTk):
         def on_confirm():
             popup.grab_release()
             popup.destroy()
+            self._intro_confirmed = True
             self._start_game()
 
         ctk.CTkButton(popup, text=intro["boton"],
@@ -168,12 +180,10 @@ class AtariLabApp(ctk.CTk):
                       fg_color="#2D7D2D", hover_color="#3A9A3A",
                       width=200).pack(pady=(0, 24))
 
-        self.wait_window(popup)
-
     # --- Control del juego ---
 
     def _start_game(self):
-        if self._running:
+        if self._running or not self._intro_confirmed:
             return
         self.watcher.reset()
         self.game_objects = self.lesson.build(self.injector)

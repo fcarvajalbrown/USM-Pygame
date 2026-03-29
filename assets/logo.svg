@@ -1,0 +1,14 @@
+<svg width="100%" viewBox="0 0 680 280" xmlns="http://www.w3.org/2000/svg">
+  <rect x="200" y="40" width="8" height="200" fill="#002B5C"/>
+  <rect x="216" y="40"  width="26" height="66" fill="#E63946"/>
+  <rect x="216" y="114" width="26" height="66" fill="#2DC653"/>
+  <rect x="216" y="188" width="26" height="52" fill="#1982C4"/>
+  <rect x="250" y="40"  width="26" height="52" fill="#1982C4"/>
+  <rect x="250" y="100" width="26" height="66" fill="#E63946"/>
+  <rect x="250" y="174" width="26" height="66" fill="#2DC653"/>
+  <text x="296" y="132" font-family="Georgia, serif" font-size="72" font-weight="700"
+        fill="#002B5C" letter-spacing="-2">USM</text>
+  <rect x="296" y="151" width="190" height="4" fill="#E63946"/>
+  <text x="296" y="196" font-family="Georgia, serif" font-size="44" font-weight="400"
+        fill="#002B5C" letter-spacing="1">Pygame</text>
+</svg>
