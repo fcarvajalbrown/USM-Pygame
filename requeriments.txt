@@ -1,0 +1,4 @@
+pygame-ce>=2.5.7
+customtkinter>=5.2.2
+pygments>=2.19.2
+pillow>=12.1.1

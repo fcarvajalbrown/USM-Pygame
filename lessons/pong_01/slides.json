@@ -1,0 +1,47 @@
+{
+  "intro": {
+    "titulo": "Lección 01 — Variables & Tipos",
+    "cuerpo": "El juego está ROTO a propósito.\n\n• La pelota se mueve a 800 px/s — demasiado rápido.\n• Tu paleta mide solo 8 px — demasiado pequeña.\n\nTu misión: asignar los valores correctos a estas dos variables.\n\nVelocidad correcta: entre 150 y 300\nAltura correcta: entre 80 y 120\n\nCuando lo logres y anotes 3 puntos, ¡pasas la lección!",
+    "boton": "Entendido — ¡A jugar!"
+  },
+  "variables": [
+    {
+      "nombre": "BALL_SPEED",
+      "hint": "# Velocidad de la pelota (150 – 300)",
+      "default": "800",
+      "target": "pelota",
+      "atributos": ["vx", "vy"],
+      "transform": "speed_xy"
+    },
+    {
+      "nombre": "PADDLE_H",
+      "hint": "# Altura de la paleta del jugador (80 – 120)",
+      "default": "8",
+      "target": "paleta_jugador",
+      "atributos": ["h"],
+      "transform": "int"
+    }
+  ],
+  "diapositivas": [
+    {
+      "titulo": "El Objeto Raíz",
+      "cuerpo": "Todo en este juego es un AtariObject. Tiene x, y, w, h y un método draw(). Nada más.",
+      "resaltar": "base_entities.py:AtariObject"
+    },
+    {
+      "titulo": "Especialización",
+      "cuerpo": "Paddle hereda de AtariObject y agrega handle_input(). La paleta ES un AtariObject, pero con comportamiento nuevo.",
+      "resaltar": "template.py:Paddle"
+    },
+    {
+      "titulo": "El Caos",
+      "cuerpo": "BALL_SPEED está en 800 y PADDLE_H en 8. Corrige las variables en el panel derecho.",
+      "resaltar": "template.py:BALL_SPEED_DEFAULT"
+    },
+    {
+      "titulo": "Condición de Victoria",
+      "cuerpo": "Para pasar: velocidad entre 150–300, paleta ≥80 px, y anota 3 puntos.",
+      "resaltar": "win_condition.py:win_condition"
+    }
+  ]
+}
