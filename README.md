@@ -1,3 +1,15 @@
+<p align="center">
+  <img src="assets/logo.svg" width="340" alt="USM-Pygame logo"/>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-0.1-FFC832?style=for-the-badge" alt="version"/>
+  <img src="https://img.shields.io/badge/Python-3.11+-002B5C?style=for-the-badge&logo=python&logoColor=white" alt="python"/>
+  <img src="https://img.shields.io/badge/pygame--ce-2.5.7-E63946?style=for-the-badge" alt="pygame-ce"/>
+  <img src="https://img.shields.io/badge/license-MIT-2DC653?style=for-the-badge" alt="license"/>
+  <img src="https://img.shields.io/badge/USM-Ingeniería-1982C4?style=for-the-badge" alt="usm"/>
+</p>
+
 # USM Pygame
 
 Plataforma de aprendizaje de Python y POO mediante juegos Atari rotos.
