@@ -44,11 +44,11 @@ USM-Pygame/
         └── slides.json              # intro{}, variables[], diapositivas[]
 ```
 
-## Contrato de cada lección
+## Variables de cada lección
 
 Cada carpeta en `lessons/` debe implementar:
 
-| Archivo | Contrato |
+| Archivo | Variables |
 |---|---|
 | `template.py` | `build(injector) -> tuple` — retorna (player, enemy, *resto); `run_frame(*objects, keys, dt, surface, watcher)` |
 | `win_condition.py` | `win_condition(state: dict) -> bool` — importa constantes vía importación relativa |
