@@ -1,4 +1,4 @@
-# AtariLab — USM
+# USM Pygame
 
 Plataforma de aprendizaje de Python y POO mediante juegos Atari rotos.
 Desarrollado para primer año de Ingeniería en Diseño de Videojuegos, Universidad Santa María.
